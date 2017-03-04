@@ -5,3 +5,6 @@
 int rpcInit(void) {
 	return 0;
 }
+
+int rpcRegister(char *name, int *argTypes, skeleton f);
+
