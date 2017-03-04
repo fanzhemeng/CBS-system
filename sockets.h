@@ -16,9 +16,7 @@ std::string getaddr(int sockfd, const char* str_port);
 
 void selection(int sockfd);
 
-std::string encode(std::string);
 
-std::pair <size_t, std::string> decode(std::string str);
 
 std::pair <int, std::string> respond();
 
