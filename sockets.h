@@ -5,9 +5,29 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+//**communicate functions
+std::string encode(unsigned char* p, size_t len);
 
+void decode(unsigned char* p, std::string str, size_t len);
 
+std::string encode_length(size_t len);
 
+size_t decode_length(std::string str);
+
+size_t length_of_argtypes(int* argtypes);
+
+std::string encode_argtypes(int* argtypes);
+
+int* decode_argtypes(std::string str);
+
+std::string encode_fname(std::string fname);
+
+std::string decode_fname(std::string str);
+
+std::string encode_args(int* argtypes, void** args);
+
+void** decode_args(int* argtypes, std::string str);
+//**end of communication functions
 int create_socket();
 
 int getport(int sockfd);
@@ -15,8 +35,6 @@ int getport(int sockfd);
 std::string getaddr(int sockfd, const char* str_port);
 
 void selection(int sockfd);
-
-
 
 std::pair <int, std::string> respond();
 

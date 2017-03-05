@@ -22,6 +22,111 @@ std::map <int, std::string> requests;
 std::map <int, size_t> lengths;
 
 
+std::string encode(unsigned char* p, size_t len) {
+    std::string str;
+    for (size_t i = 0; i < len; i ++)
+        str += p[i];
+    return str;
+}
+
+void decode(unsigned char* p, std::string str, size_t len) {
+    for (size_t i = 0; i < len; i ++)
+        p[i] = str[i];
+}
+
+std::string encode_length(size_t len) {
+    return encode((unsigned char*)&len, sizeof(len));
+}
+
+size_t decode_length(std::string str) {
+    size_t length;
+    decode((unsigned char*)&length, str, sizeof(length));
+    return length;
+} 
+
+size_t length_of_argtypes(int* argtypes) {
+    size_t i;
+    for (i = 0; argtypes[i] != 0; i ++);
+    return i;
+}
+
+std::string encode_argtypes(int* argtypes) {
+    size_t length = length_of_argtypes(argtypes);
+    return encode_length(length) + encode((unsigned char*)argtypes, sizeof(int) * length);
+}
+
+int* decode_argtypes(std::string str) {
+    size_t length = decode_length(str);
+    str.erase(0, sizeof(length));
+    int* argtypes = new int[length];
+    decode((unsigned char*)argtypes, str, length * sizeof(int));
+    return argtypes;
+}
+
+std::string encode_fname(std::string fname) {
+	size_t length = fname.length();
+	return encode_length(length) + fname;
+}
+
+std::string decode_fname(std::string str) {
+	size_t length = decode_length(str);
+	str.erase(0, sizeof(length));
+	std::string fname = str;
+	return fname;
+}
+
+std::pair <size_t, std::string> decode_socket(std::string str) {
+    std::pair <size_t, std::string> result;
+    size_t length = decode_length(str);
+    str.erase(0, sizeof(length));
+    result.first = length;
+    result.second = str;
+    return result;
+}
+
+bool test_length() {
+    size_t len = 233;
+    std::string str = encode_length(len);
+    if (decode_length(str) != len) return false;
+    return true;
+}
+
+bool test_argtypes() {
+    int argtypes[] = {14324, 143251, 0};
+    std::string str = encode_argtypes(argtypes);
+    int* ans = decode_argtypes(str);
+    for (int i = 0; i < 3; i ++)
+        if (argtypes[i] != ans[i]) {
+            delete [] ans;
+            return false;
+        }
+    delete [] ans;
+    return true;
+}
+
+bool test_fname() {
+	std::string fname = "function_name";
+	std::string enc = encode_fname(fname);
+	if (decode_fname(enc) != fname) return false;
+	return true;
+}
+
+// testing
+#include <iostream>
+int main() {
+    std::cout << test_length() << std::endl;
+    std::cout << test_argtypes() << std::endl;
+    std::cout << test_fname() << std::endl;
+}
+
+
+
+
+
+
+
+
+
 int create_socket() {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in saddr;
@@ -125,36 +230,13 @@ void selection(int sockfd) {
     }
 }
 
-
-std::pair <size_t ,std::string> decode(std::string str) {
-    if (str.length() >= 4) {
-        size_t len = 0;
-        for (int i = 0; i < 4; i ++) {
-            len += str[i] << (3 - i);
-        }
-        str.erase(0, 4);
-        return std::make_pair(len, str);
-    }
-    return std::make_pair(-1, "");
-}
-
-std::string encode(std::string str) {
-    size_t len = str.length() + 1;
-    str += "\0";
-    std::string count;
-    for (int i = 3; i >= 0; i --) {
-        count += (char)((len >> (i * 8) % 256));
-    }
-    return count + str;
-}
-
 std::pair <int, std::string> respond() {
     for (std::map<int, std::string>::iterator it = read_buf.begin(); it != read_buf.end(); it ++) {
         if ((it->second).size() > 0) {
             std::cout << "find a request" << std::endl;
             if (requests.find(it->first) == requests.end()) {
                 std::cout << "request not in set" << std::endl;
-                std::pair <size_t, std::string> de_str = decode(it->second);
+                std::pair <size_t, std::string> de_str = decode_socket(it->second);
                 requests[it->first] = de_str.second;
                 lengths[it->first] = de_str.first;
             }
@@ -174,7 +256,7 @@ std::pair <int, std::string> respond() {
 } 
 
 void send_result(std::pair <int, std::string> result) {
-    write_buf[result.first] = encode(result.second);
+    write_buf[result.first] = encode_fname(result.second);
 }
 
 int connect(std::string &addr, int port) {
