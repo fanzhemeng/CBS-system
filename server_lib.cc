@@ -42,6 +42,18 @@ int* decode_argtypes(std::string str) {
     return argtypes;
 }
 
+std::string encode_fname(std::string fname) {
+	size_t length = fname.length();
+	return encode_length(length) + fname;
+}
+
+std::string decode_fname(std::string str) {
+	size_t length = decode_length(str);
+	str.erase(0, sizeof(length));
+	std::string fname = str.substr(0, length);
+	return fname;
+}
+
 bool test_length() {
     size_t len = 233;
     std::string str = encode_length(len);
@@ -62,9 +74,17 @@ bool test_argtypes() {
     return true;
 }
 
+bool test_fname() {
+	std::string fname = "function_name";
+	std::string enc = encode_fname(fname);
+	if (decode_fname(enc) != fname) return false;
+	return true;
+}
+
 // testing
 #include <iostream>
 int main() {
     std::cout << test_length() << std::endl;
     std::cout << test_argtypes() << std::endl;
+    std::cout << test_fname() << std::endl;
 }
