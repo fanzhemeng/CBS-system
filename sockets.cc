@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "sockets.h"
+#include "rpc.h"
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -21,6 +22,17 @@ std::map <int, std::string> read_buf, write_buf;
 std::map <int, std::string> requests;
 std::map <int, size_t> lengths;
 
+std::map <unsigned int, size_t> size_lookup;
+
+void init() {
+    size_lookup[1] = sizeof(char);
+    size_lookup[2] = sizeof(short);
+    size_lookup[3] = sizeof(int);
+    size_lookup[4] = sizeof(long);
+    size_lookup[5] = sizeof(double);
+    size_lookup[6] = sizeof(float);
+}
+
 
 std::string encode(unsigned char* p, size_t len) {
     std::string str;
@@ -30,8 +42,9 @@ std::string encode(unsigned char* p, size_t len) {
 }
 
 void decode(unsigned char* p, std::string str, size_t len) {
-    for (size_t i = 0; i < len; i ++)
+    for (size_t i = 0; i < len; i ++) {
         p[i] = str[i];
+    }
 }
 
 std::string encode_length(size_t len) {
@@ -64,15 +77,15 @@ int* decode_argtypes(std::string str) {
 }
 
 std::string encode_fname(std::string fname) {
-	size_t length = fname.length();
-	return encode_length(length) + fname;
+    size_t length = fname.length();
+    return encode_length(length) + fname;
 }
 
 std::string decode_fname(std::string str) {
-	size_t length = decode_length(str);
-	str.erase(0, sizeof(length));
-	std::string fname = str;
-	return fname;
+    size_t length = decode_length(str);
+    str.erase(0, sizeof(length));
+    std::string fname = str;
+    return fname;
 }
 
 std::pair <size_t, std::string> decode_socket(std::string str) {
@@ -83,6 +96,38 @@ std::pair <size_t, std::string> decode_socket(std::string str) {
     result.second = str;
     return result;
 }
+
+std::string encode_args(int* argtypes, void** args) {
+    size_t len = length_of_argtypes(argtypes);
+
+    std::string str;
+    for (int i = 0; i < len; i ++) {
+        unsigned int array_length = std::max((argtypes[i] & 0xffff), 1);
+        unsigned int type = (argtypes[i] >> 16) & 0xff;
+        //std::cout << "array lenth: " << array_length << std::endl;
+        //std::cout << "type: " << size_lookup[type] << std::endl;
+        str += encode((unsigned char*)args[i], size_lookup[type] * array_length);
+        //std::cout << "size : " << str.length() << std::endl;
+    }
+    return str;
+}
+
+void ** decode_args(int* argtypes, std::string str) {
+    size_t len = length_of_argtypes(argtypes);
+    void **args = new void*[len];
+    for (int i = 0; i < len; i ++) {
+        unsigned int array_len = std::max((argtypes[i] & 0xffff), 1);
+        unsigned int type = (argtypes[i] >> 16) & 0xff;
+        //std::cout << "array lenth: " << array_len << std::endl;
+        //std::cout << "type: " << size_lookup[type] << std::endl;
+        args[i] = new unsigned char*[array_len * size_lookup[type]];
+        decode((unsigned char*)args[i], str, array_len * size_lookup[type]);
+        //std::cout << "decoding done" << std::endl;
+        str.erase(0, array_len * size_lookup[type]);
+    }
+    return args;
+}
+
 
 bool test_length() {
     size_t len = 233;
@@ -105,18 +150,38 @@ bool test_argtypes() {
 }
 
 bool test_fname() {
-	std::string fname = "function_name";
-	std::string enc = encode_fname(fname);
-	if (decode_fname(enc) != fname) return false;
-	return true;
+    std::string fname = "function_name";
+    std::string enc = encode_fname(fname);
+    if (decode_fname(enc) != fname) return false;
+    return true;
 }
 
+void test_args() {
+    int a = 3;
+    char b = 'a';
+    int argtypes[3];
+    argtypes[0] = (1 << ARG_OUTPUT) | (ARG_INT << 16);
+    argtypes[1] = (1 << ARG_OUTPUT) | (ARG_CHAR << 16);
+    argtypes[2] = 0;
+    void** args = (void**) malloc(3 * sizeof(void *));
+    args[0] = (void*)&a;
+    args[1] = (void*)&b;
+    std::string enc = encode_args(argtypes, args);
+    //std::cout << "encode success" << std::endl;
+    //std::cout << "encoded size: " << enc.length() << std::endl;
+    void** deco = decode_args(argtypes, enc);
+    //std::cout << "decode success" << std::endl;
+    std::cout << *(int *)deco[0] << std::endl;
+    std::cout << *(char *)deco[1] << std::endl;
+}
 // testing
 #include <iostream>
 int main() {
+    init();
     std::cout << test_length() << std::endl;
     std::cout << test_argtypes() << std::endl;
     std::cout << test_fname() << std::endl;
+    test_args();
 }
 
 
