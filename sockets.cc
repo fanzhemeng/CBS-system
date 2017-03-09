@@ -57,6 +57,16 @@ size_t decode_length(std::string str) {
     return length;
 } 
 
+std::string encode_int(int num) {
+    return encode((unsigned char*)&num, sizeof(num));
+}
+
+int decode_int(std::string str) {
+    int n;
+    decode((unsigned char*)&n, str, sizeof(n));
+    return n;
+}
+
 size_t length_of_argtypes(int* argtypes) {
     size_t i;
     for (i = 0; argtypes[i] != 0; i ++);

@@ -1,4 +1,7 @@
 #include "sockets.h"
+#include "rpc.h"
+
+#include <iostream>
 
 
 
@@ -47,6 +50,14 @@ void test_args() {
     std::cout << *(int *)deco[0] << std::endl;
     std::cout << *(char *)deco[1] << std::endl;
 }
+
+bool test_ints() {
+    int a = 3;
+    std::string s = encode_int(a);
+    int b = decode_int(s);
+    if (a == b) return true;
+    else return false;
+}
 // testing
 #include <iostream>
 int main() {
@@ -55,4 +66,5 @@ int main() {
     std::cout << test_argtypes() << std::endl;
     std::cout << test_fname() << std::endl;
     test_args();
+    std::cout << test_ints() << std::endl;
 }
