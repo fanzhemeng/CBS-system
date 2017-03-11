@@ -1,10 +1,9 @@
 #include <string>
+#include <utility>
+#include <iostream>
 #include "rpc.h"
 #include "sockets.h"
 #include "server_lib.h"
-
-#include <pair>
-
 
 std::string addr;
 int port;
@@ -27,11 +26,11 @@ int rpcInit(void) {
 int rpcRegister(char* name, int* argTypes, skeleton f) {
     std::string type = std::string("") + (char)REGISTER;
     std::string id = encode_length(addr.length()) + addr;
-    std::string port = encode_int(port);
+    std::string encoded_port = encode_int(port);
     std::string fname = encode_fname(name);
     std::string argt = encode_argtypes(argTypes);
-    std::string enc = type + id + port + fname + argt;
-    send_result(std::makepair(send_sockfd, enc));
+    std::string enc = type + id + encoded_port + fname + argt;
+    send_result(std::make_pair(send_sockfd, enc));
     return 0;
 }
 
