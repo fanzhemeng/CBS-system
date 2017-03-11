@@ -22,7 +22,9 @@ int main() {
     std::cout << "BINDER_ADDRESS: " << addr << std::endl;
     std::cout << "BINDER_PORT: " << port << std::endl;
     while(1) {
+        //update buffers to receive messages
         selection(sockfd);
+        //fetch the message in the read buffers
         std::pair <int, std::string> request = respond();
         if (request.first != -1) {
             std::string mes = request.second;
