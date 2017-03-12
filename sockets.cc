@@ -86,6 +86,7 @@ std::pair <size_t, int*> decode_argtypes(std::string str) {
     decode((unsigned char*)argtypes, str, length * sizeof(int));
     result.second = argtypes;
     result.first = length;
+    return result;
 }
 
 std::string encode_fname(std::string fname) {
