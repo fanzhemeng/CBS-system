@@ -78,7 +78,7 @@ std::string encode_argtypes(int* argtypes) {
     return encode_length(length) + encode((unsigned char*)argtypes, sizeof(int) * length);
 }
 
-int* decode_argtypes(std::string str) {
+int* decode_argtypes(std::string &str) {
     size_t length = decode_length(str);
     str.erase(0, sizeof(length));
     int* argtypes = new int[length];
