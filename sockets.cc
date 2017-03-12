@@ -78,12 +78,14 @@ std::string encode_argtypes(int* argtypes) {
     return encode_length(length) + encode((unsigned char*)argtypes, sizeof(int) * length);
 }
 
-int* decode_argtypes(std::string &str) {
+std::pair <size_t, int*> decode_argtypes(std::string str) {
+    std::pair <size_t, int*> result;
     size_t length = decode_length(str);
     str.erase(0, sizeof(length));
     int* argtypes = new int[length];
     decode((unsigned char*)argtypes, str, length * sizeof(int));
-    return argtypes;
+    result.second = argtypes;
+    result.first = length;
 }
 
 std::string encode_fname(std::string fname) {

@@ -26,7 +26,7 @@ size_t length_of_argtypes(int* argtypes);
 
 std::string encode_argtypes(int* argtypes);
 
-int* decode_argtypes(std::string &str);
+std::pair<size_t, int*> decode_argtypes(std::string str);
 
 std::string encode_fname(std::string fname);
 
