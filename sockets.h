@@ -7,9 +7,13 @@
 #include <unistd.h>
 
 enum MSGTYPE {
+    REGISTER,
     REGISTER_SUCC,
     REGISTER_FAIL,
-    REGISTER,
+	EXECUTE,
+	EXECUTE_SUCC,
+	EXECUTE_FAIL,
+	TERMINATE,
     INVALID
 };
 

@@ -1,6 +1,8 @@
 #include <string>
+#include <map>
 #include <utility>
 #include <iostream>
+#include <sstream>
 #include <pthread.h>
 #include "rpc.h"
 #include "sockets.h"
@@ -8,11 +10,12 @@
 
 std::string addr;
 int port;
-volatile int send_sockfd;
-volatile int rec_sockfd;
+volatile int binder_sockfd;
+volatile int client_sockfd;
 pthread_mutex_t lock;
 pthread_t response_thread;
 bool active;
+std::map< std::pair< std::string, int*>, skeleton> ftable;
 
 void* handle(void* data) {
     while(active) {
@@ -25,11 +28,20 @@ void* handle(void* data) {
 }
 
 int rpcInit(void) {
-    std::string addr = getenv("BINDER_ADDRESS");
-    port = atoi(getenv("BINDER_PORT"));
-    send_sockfd = connect(addr, port);
+	// create connection socket used for communacate with clients
+	client_sockfd = create_socket();
+	port = getport(client_sockfd);
+	std::stringstream ss;
+	ss << port;
+	std::string str_port = ss.str();
+	srd::string addr = getaddr(client_sockfd, str_port.c_str());
 
-    if (send_sockfd == -1) {
+	// open a connection with binder
+    std::string binder_addr = getenv("BINDER_ADDRESS");
+	int binder_port = atoi(getenv("BINDER_PORT"));
+    binder_sockfd = connect(binder_addr, binder_port);
+
+    if (binder_sockfd == -1) {
         return -1;
     }
     active = true;
@@ -38,12 +50,15 @@ int rpcInit(void) {
     pthread_create(&response_thread, NULL, &handle, NULL);
     pthread_mutex_init(&lock, NULL);
     pthread_mutex_lock(&lock);
-    send_result(std::make_pair(send_sockfd, msg));
+    send_result(std::make_pair(binder_sockfd, msg));
     pthread_mutex_unlock(&lock);
+
+
     return 0;
 }
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
+	// encode REGISTER message
     std::string type = std::string("") + (char)REGISTER;
     std::cout << type << std::endl;
     std::string id = encode_length(addr.length()) + addr;
@@ -52,33 +67,32 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     std::string argt = encode_argtypes(argTypes);
     std::string enc = type + id + encoded_port + fname + argt;
 
-    pthread_mutex_lock(&lock);
-    send_result(std::make_pair(send_sockfd, enc));
-    pthread_mutex_unlock(&lock);
-    active = false;
-    pthread_join(response_thread, NULL);
-    pthread_mutex_destroy(&lock);
+	// save skeleton f in local table
+	ftable[std::make_pair(name, argTypes)] = f;
 
-    return 0;
+	// send REGISTER message
+    pthread_mutex_lock(&lock);
+    send_result(std::make_pair(binder_sockfd, enc));
+    pthread_mutex_unlock(&lock);
+
+	return 0;
 }
 
 int rpcExecute(void) {
 	while (1) {
 		// update buffers to receive messages
-		selection(rec_sockfd);
+		selection(client_sockfd);
 		// fetch the message in the read buffer
 		std::pair <int, std::string> request = respond();
-		if (request.first == -1) {
-			// err ?
-			return -1;
-		}
+		if (request.first == -1) { continue; }
 
-		// get the actual message
+		// get the actual message and its type
 		std::string msg = request.second;
-		if (msg.length() < 7) {continue;} // invalid message
+		int msgtype = decode_int(msg);
+		msg.erase(0, sizeof(int));
 
-		if (msg.substr(0, 7) == "EXECUTE") {
-			msg = msg.substr(7);
+		if (msgtype == EXECUTE) {
+			// decode fname, argtypes, and args
 			std::string fname = decode_fname(msg);
 			msg = msg.substr(sizeof(size_t) + fname.length());
 			std::pair<size_t, int*> a = decode_argtypes(msg);
@@ -87,29 +101,32 @@ int rpcExecute(void) {
 			void **args = decode_args(argt, msg);
 
 			// find and call skeleton function
-			skeleton f = funcs.at(std::make_pair(fname, argt));
+			skeleton f = ftable.at(std::make_pair(fname, argt));
 			int result = f(argt, args);
 
 			// now send result back to client
 			std::string enc_type, ret_msg;
 			if (result == 0) {
-				enc_type = std::string("") + (char)EXECUTE_SUCCESS;
+				enc_type = std::string("") + (char)EXECUTE_SUCC;
 				std::string enc_fname = encode_fname(fname);
 				std::string enc_argt = encode_argtypes(argt);
 				std::string enc_args = encode_args(argt, args);
 				ret_msg = enc_type + enc_fname + enc_argt + enc_args;
-				send_result(std::make_pair(send_sockfd, ret_msg));
+				send_result(std::make_pair(client_sockfd, ret_msg));
 			}
 			else {
-				enc_type = std::string("") + (char)EXECUTE_FAILURE;
+				enc_type = std::string("") + (char)EXECUTE_FAIL;
 				std::string enc_reasonCode = encode_int(result);
 				ret_msg = enc_type + enc_reasonCode;
-				send_result(std::make_pair(send_sockfd, ret_msg));
+				send_result(std::make_pair(client_sockfd, ret_msg));
 			}
 		}
 
-		else if (msg == "TERMINATE") {
+		else if (msgtype == TERMINATE) {
 			// also need to verify IP and port 
+			active = false;
+			pthread_join(response_thread, NULL);
+			pthread_mutex_destroy(&lock);
 			return 0;
 		}
 	}
