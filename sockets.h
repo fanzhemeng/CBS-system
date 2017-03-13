@@ -5,6 +5,15 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+enum MSGTYPE {
+    REGISTER_SUCC,
+    REGISTER_FAIL,
+    REGISTER,
+    INVALID
+};
+
+
 //**communicate functions
 void init();
 

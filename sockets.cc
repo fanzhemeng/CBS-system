@@ -190,11 +190,13 @@ std::string getaddr(int sockfd, const char* str_port) {
 }
 
 void selection(int sockfd) {
+
     fd_set read_fds, write_fds;
     FD_ZERO(&read_fds);
     FD_ZERO(&write_fds);
     for (std::set <int>::iterator it = sfdset.begin(); it != sfdset.end(); it ++) {
         if (*it != sockfd) {
+
             FD_SET(*it, &read_fds);
             FD_SET(*it, &write_fds);
         }
@@ -204,23 +206,31 @@ void selection(int sockfd) {
 
     char buf[MAX_BUFFER];
     int numfds = *(sfdset.rbegin());
+
     if (select(numfds + 1, &read_fds, &write_fds, NULL, NULL) == -1) {
+
         return;
     }
 
     for (std::set <int>::iterator it = sfdset.begin(); it != sfdset.end(); it ++) {
         if (FD_ISSET(*it, &read_fds)) {
+			//std::cout << "one fd in read" << std::endl;
             if (*it == sockfd) {
+				//std::cout << "server" << std::endl;
                 int new_fd = accept(sockfd, NULL, NULL);
                 sfdset.insert(new_fd);
             }
             else {
+				//std::cout << "client" << std::endl;
+				//std::cout << "fd is : " << *it << std::endl;
                 size_t len = read(*it, &buf, sizeof(buf));
+				//std::cout << "string len is: " << std::endl;
                 if (len > 0) {
                     for (int i = 0;  i < len; i ++) {
                         read_buf[*it] += buf[i];
                     }
                 }
+				//std::cout << "message read is: " << read_buf[*it] << std::endl;
                 if (len == 0) {
                     sfdset.erase(it);
                     close(*it);
@@ -247,18 +257,19 @@ void selection(int sockfd) {
 
 std::pair <int, std::string> respond() {
     for (std::map<int, std::string>::iterator it = read_buf.begin(); it != read_buf.end(); it ++) {
+
         if ((it->second).size() > 0) {
-            std::cout << "find a request" << std::endl;
+            //std::cout << "find a request" << std::endl;
             if (requests.find(it->first) == requests.end()) {
-                std::cout << "request not in set" << std::endl;
+                //std::cout << "request not in set" << std::endl;
                 std::pair <size_t, std::string> de_str = decode_socket(it->second);
                 requests[it->first] = de_str.second;
                 lengths[it->first] = de_str.first;
             }
             else requests[it->first] += it->second;
             it->second.clear();
-            std::cout << "recieved len: " << requests[it->first].length() << std::endl;
-            std::cout << "expected len: " << lengths[it->first] << std::endl;
+            //std::cout << "recieved len: " << requests[it->first].length() << std::endl;
+            //std::cout << "expected len: " << lengths[it->first] << std::endl;
             if ((requests[it->first]).length() == lengths[it->first]) {
                 std::pair <int, std::string> result = std::make_pair(it->first, requests[it->first]);
                 requests.erase(it->first);

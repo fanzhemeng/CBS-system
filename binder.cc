@@ -28,7 +28,15 @@ int main() {
         std::pair <int, std::string> request = respond();
         if (request.first != -1) {
             std::string mes = request.second;
-            std::cout << mes << std::endl;
+            std::cout << "mes : " << mes << std::endl;
+            int type = decode_int(mes);
+            mes.erase(0, sizeof(int));
+            if (type == REGISTER) {
+                std::cout << "registering a function" << std::endl;
+                size_t l = decode_length(mes);
+                std::string fname = decode_fname(mes);
+
+            }
             
         }
 

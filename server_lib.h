@@ -1,7 +1,2 @@
 
-enum MSGTYPE {
-    REGISTER_SUCC,
-    REGISTER_FAIL,
-    REGISTER,
-    INVALID
-};
+
