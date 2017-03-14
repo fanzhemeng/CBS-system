@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 enum MSGTYPE {
+    LOC_REQUEST,
     REGISTER,
     REGISTER_SUCC,
     REGISTER_FAIL,

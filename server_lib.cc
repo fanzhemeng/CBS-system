@@ -24,7 +24,7 @@ void* handle(void* data) {
         std::pair <int, std::string> result = respond();
         pthread_mutex_unlock(&lock);
         if (result.first != -1) {
-            std::cout << "Server: " << result.second << std::endl;
+            std::cout << "Binder: " << result.second << std::endl;
         }
     } 
     return NULL;
