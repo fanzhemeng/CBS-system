@@ -97,7 +97,7 @@ std::string encode_fname(std::string fname) {
 std::string decode_fname(std::string str) {
     size_t length = decode_length(str);
     str.erase(0, sizeof(length));
-    std::string fname = str;
+    std::string fname = str.substr(0,length);
     return fname;
 }
 
@@ -232,6 +232,7 @@ void selection(int sockfd) {
                 }
 				//std::cout << "message read is: " << read_buf[*it] << std::endl;
                 if (len == 0) {
+                    std::cout << "close fd: " << *it << std::endl;
                     sfdset.erase(it);
                     close(*it);
                 }

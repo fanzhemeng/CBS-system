@@ -23,6 +23,9 @@ void* handle(void* data) {
         selection(-1);
         std::pair <int, std::string> result = respond();
         pthread_mutex_unlock(&lock);
+        if (result.first != -1) {
+            std::cout << "Server: " << result.second << std::endl;
+        }
     } 
     return NULL;
 }
@@ -34,7 +37,7 @@ int rpcInit(void) {
 	std::stringstream ss;
 	ss << port;
 	std::string str_port = ss.str();
-	srd::string addr = getaddr(client_sockfd, str_port.c_str());
+	addr = getaddr(client_sockfd, str_port.c_str());
 
 	// open a connection with binder
     std::string binder_addr = getenv("BINDER_ADDRESS");
@@ -59,12 +62,15 @@ int rpcInit(void) {
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
 	// encode REGISTER message
-    std::string type = std::string("") + (char)REGISTER;
-    std::cout << type << std::endl;
+    std::string type = encode_int(REGISTER);
+
     std::string id = encode_length(addr.length()) + addr;
+
     std::string encoded_port = encode_int(port);
+    std::cout << port << std::endl;
     std::string fname = encode_fname(name);
     std::string argt = encode_argtypes(argTypes);
+    size_t l = length_of_argtypes(argTypes); 
     std::string enc = type + id + encoded_port + fname + argt;
 
 	// save skeleton f in local table
@@ -74,7 +80,6 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     pthread_mutex_lock(&lock);
     send_result(std::make_pair(binder_sockfd, enc));
     pthread_mutex_unlock(&lock);
-
 	return 0;
 }
 
