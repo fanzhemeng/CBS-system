@@ -17,6 +17,9 @@ void* handle(void* data) {
 		selection(-1);
 		std::pair <int, std::string> result = respond();
 		pthread_mutex_unlock(&lock);
+        if (result.first != -1) {
+            std::string msg = result.second;
+        }
 	} 
 	return NULL;
 }
@@ -59,7 +62,8 @@ int rpcCall(char *name, int *argTypes, void** args) {
 	if (req.first == -1) {
 		return -1;
 	}
-
+    
+    //handle this in handler
 	// decode response message
 	std::string req_result = req.second;
 	std::cout << "result: " << req_result << std::endl;
