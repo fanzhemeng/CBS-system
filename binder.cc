@@ -17,6 +17,10 @@ std::map <int, std::pair<std::string, int> > id_table;
 
 std::map <int, std::set<function_def> > func_table;
 
+std::map <function_def, std::set<int> > func_to_server;
+
+
+
 bool operator < (const argtypes &argTypes1, const argtypes &argTypes2) {
     int l1 = argTypes1.size();
     int l2 = argTypes2.size();
@@ -86,6 +90,7 @@ int main() {
                     //adding a new server to the map
                     if (it == id_table.end()) {
                         id_table[current_sockfd] = std::make_pair(addr, port);
+                        //also add it to the queue
                         server_queue.insert(server_queue.begin(), current_sockfd);
                     }
                     //decode function signature
@@ -93,6 +98,7 @@ int main() {
                     std::string fname = decode_fname(mes);
                     mes.erase(0, sizeof(size_t) + fname.length());                
                     std::pair<size_t, int*> argts = decode_argtypes(mes);
+                    //insert into func_table
                     std::map<int, std::set<function_def> >::iterator it2;
                     it2 = func_table.find(current_sockfd);
                     std::vector <int> argtypes;
@@ -109,6 +115,17 @@ int main() {
                     else {
                         (func_table[current_sockfd]).insert(func_def);
                     }
+
+
+                    std::map < function_def, std::set<int> >::iterator it3;
+                    it3 = func_to_server.find(func_def);
+                    if (it3 == func_to_server.end()) {
+                        std::set <int> new_set;
+                        new_set.insert(current_sockfd);
+                        func_to_server[func_def] = new_set;
+                    } else {
+                        (func_to_server[func_def]).insert(current_sockfd);
+                    }
                     request.second = "REGISTER_SUCCESS";
                     send_result(request);
                     list_funcs();
@@ -116,7 +133,52 @@ int main() {
                     request.second = "REGISTER_FAILURE";
                     send_result(request); 
                 } 
+            } else if (type == LOC_REQUEST) {
+                //decode the name
+                std::string fname = decode_fname(mes);
+                mes.erase(0, sizeof(size_t) + fname.length());
+                std::pair<size_t, int*> argts = decode_argtypes(mes);
+                std::vector <int> argtype;
+                for (size_t i = 0; i < argts.first; i ++) {
+                    argtype.push_back((argts.second)[i]);
+                }
+                function_def fde = std::make_pair(fname, argtype);
+                std::map <function_def, std::set<int> >::iterator it;
+                it = func_to_server.find(fde);
+                //the function is on one of the server
+                if (it != func_to_server.end()) {
+                    std::set<int> servers = it->second;
+                    std::set<int>::iterator sit;
+                    std::vector<int>::iterator qit;
+                    int server;
+                    //find out which server should serve the request
+                    for(qit = server_queue.begin(); qit != server_queue.end(); qit ++) {
+                        sit = servers.find(*qit);
+                        if (sit != servers.end()) {
+                            server = *sit;
+                            break;
+                        }
+                    }
+                    //remove the current server from the queue and put it to the back
+                    server_queue.erase(qit);
+                    server_queue.push_back(server);
+                    //find the server info
+                    std::pair <std::string, int> server_info = id_table[server];
+                    std::string type = encode_int(LOC_SUCCESS);
+                    std::string id = encode_length(server_info.first.length()) + server_info.first;
+                    std::string port = encode_int(server_info.second);
+                    std::string msg = type + id + port;
+                    request.second = msg;
+                    send_result(request);
+                } else {
+                    std::string type = encode_int(LOC_FAILURE);
+                    std::string reason = encode_int(FUNC_NOT_FOUND);
+                    std::string msg = type + reason;
+                    request.second = msg;
+                    send_result(request);
+                }
             }
         }
     }
+    
 }

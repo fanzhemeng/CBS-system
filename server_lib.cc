@@ -67,7 +67,6 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     std::string id = encode_length(addr.length()) + addr;
 
     std::string encoded_port = encode_int(port);
-    std::cout << port << std::endl;
     std::string fname = encode_fname(name);
     std::string argt = encode_argtypes(argTypes);
     size_t l = length_of_argtypes(argTypes); 
