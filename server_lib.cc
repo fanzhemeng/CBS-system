@@ -47,16 +47,6 @@ int rpcInit(void) {
     if (binder_sockfd == -1) {
         return -1;
     }
-    active = true;
-    std::string msg = "hello init success";
-
-    pthread_create(&response_thread, NULL, &handle, NULL);
-    pthread_mutex_init(&lock, NULL);
-    pthread_mutex_lock(&lock);
-    send_result(std::make_pair(binder_sockfd, msg));
-    pthread_mutex_unlock(&lock);
-
-
     return 0;
 }
 
@@ -74,11 +64,17 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 
 	// save skeleton f in local table
 	ftable[std::make_pair(name, argTypes)] = f;
+    active = true;
+    pthread_create(&response_thread, NULL, &handle, NULL);
+    pthread_mutex_init(&lock, NULL);
 
 	// send REGISTER message
     pthread_mutex_lock(&lock);
     send_result(std::make_pair(binder_sockfd, enc));
     pthread_mutex_unlock(&lock);
+	sleep(1);
+    active = false;
+    pthread_join(response_thread, NULL);
 	return 0;
 }
 
@@ -92,18 +88,19 @@ int rpcExecute(void) {
 
 		// get the actual message and its type
 		std::string msg = request.second;
+        std::cout << "mes: " << msg << std::endl;
 		int msgtype = decode_int(msg);
 		msg.erase(0, sizeof(int));
-
 		if (msgtype == EXECUTE) {
+            std::cout << "receiving an execute request" << std::endl;
 			// decode fname, argtypes, and args
 			std::string fname = decode_fname(msg);
 			msg = msg.substr(sizeof(size_t) + fname.length());
 			std::pair<size_t, int*> a = decode_argtypes(msg);
 			int *argt = a.second;
-			msg = msg.substr(sizeof(size_t) + a.first * sizeof(int*));
+			msg = msg.substr(sizeof(size_t) + a.first * sizeof(int));
 			void **args = decode_args(argt, msg);
-
+            std::cout << "decoding done" << std::endl;
 			// find and call skeleton function
 			skeleton f = ftable.at(std::make_pair(fname, argt));
 			int result = f(argt, args);
@@ -125,14 +122,14 @@ int rpcExecute(void) {
 				send_result(std::make_pair(client_sockfd, ret_msg));
 			}
 		}
-
+        /*
 		else if (msgtype == TERMINATE) {
 			// also need to verify IP and port 
 			active = false;
 			pthread_join(response_thread, NULL);
 			pthread_mutex_destroy(&lock);
 			return 0;
-		}
+		}*/
 	}
 	return 0;
 }

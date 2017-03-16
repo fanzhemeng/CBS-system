@@ -134,51 +134,64 @@ int main() {
                     send_result(request); 
                 } 
             } else if (type == LOC_REQUEST) {
-                //decode the name
-                std::string fname = decode_fname(mes);
-                mes.erase(0, sizeof(size_t) + fname.length());
-                std::pair<size_t, int*> argts = decode_argtypes(mes);
-                std::vector <int> argtype;
-                for (size_t i = 0; i < argts.first; i ++) {
-                    argtype.push_back((argts.second)[i]);
-                }
-                function_def fde = std::make_pair(fname, argtype);
-                std::map <function_def, std::set<int> >::iterator it;
-                it = func_to_server.find(fde);
-                //the function is on one of the server
-                if (it != func_to_server.end()) {
-                    std::set<int> servers = it->second;
-                    std::set<int>::iterator sit;
-                    std::vector<int>::iterator qit;
-                    int server;
-                    //find out which server should serve the request
-                    for(qit = server_queue.begin(); qit != server_queue.end(); qit ++) {
-                        sit = servers.find(*qit);
-                        if (sit != servers.end()) {
-                            server = *sit;
-                            break;
-                        }
+                try{
+                    std::cout << "has a client" << std::endl;
+                    //decode the name
+                    std::string fname = decode_fname(mes);
+                    std::cout << "calling function" << fname << std::endl;
+                    mes.erase(0, sizeof(size_t) + fname.length());
+                    std::pair<size_t, int*> argts = decode_argtypes(mes);
+                    std::vector <int> argtype;
+                    for (size_t i = 0; i < argts.first; i ++) {
+                        argtype.push_back((argts.second)[i]);
                     }
-                    //remove the current server from the queue and put it to the back
-                    server_queue.erase(qit);
-                    server_queue.push_back(server);
-                    //find the server info
-                    std::pair <std::string, int> server_info = id_table[server];
-                    std::string type = encode_int(LOC_SUCCESS);
-                    std::string id = encode_length(server_info.first.length()) + server_info.first;
-                    std::string port = encode_int(server_info.second);
-                    std::string msg = type + id + port;
-                    request.second = msg;
-                    send_result(request);
-                } else {
+                    function_def fde = std::make_pair(fname, argtype);
+                    std::map <function_def, std::set<int> >::iterator it;
+                    it = func_to_server.find(fde);
+                    //the function is on one of the server
+                    if (it != func_to_server.end()) {
+                        std::set<int> servers = it->second;
+                        std::set<int>::iterator sit;
+                        std::vector<int>::iterator qit;
+                        int server;
+                        //find out which server should serve the request
+                        for(qit = server_queue.begin(); qit != server_queue.end(); qit ++) {
+                            sit = servers.find(*qit);
+                            if (sit != servers.end()) {
+                                server = *sit;
+                                break;
+                            }
+                        }
+                        //remove the current server from the queue and put it to the back
+                        server_queue.erase(qit);
+                        server_queue.push_back(server);
+                        //find the server info
+                        std::pair <std::string, int> server_info = id_table[server];
+                        std::string type = encode_int(LOC_SUCCESS);
+                        std::string id = encode_length(server_info.first.length()) + server_info.first;
+                        std::string port = encode_int(server_info.second);
+                        std::string msg = type + id + port;
+                        request.second = msg;
+                        std::cout << "find server with ip: " << server_info.first << std::endl;
+                        std::cout << "port: " << server_info.second << std::endl;
+                        send_result(request);
+                        std::cout << "reponse sent" << std::endl;
+                    } else {
+                        std::string type = encode_int(LOC_FAILURE);
+                        std::string reason = encode_int(FUNC_NOT_FOUND);
+                        std::string msg = type + reason;
+                        request.second = msg;
+                        send_result(request);
+                    }
+                } catch (...) {
                     std::string type = encode_int(LOC_FAILURE);
-                    std::string reason = encode_int(FUNC_NOT_FOUND);
+                    std::string reason = encode_int(EXCEPTION);
                     std::string msg = type + reason;
                     request.second = msg;
                     send_result(request);
-                }
+                }   
             }
         }
     }
-    
+
 }
