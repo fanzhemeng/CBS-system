@@ -10,7 +10,7 @@ int main() {
     int a0 = 5;
     int b0 = 10;
     int count0 = 3;
-    int return0;
+    int return0=0;
     int argTypes0[count0 + 1];
     void **args0;
 
@@ -24,7 +24,8 @@ int main() {
     args0[2] = (void *)&b0;
     printf("before call\n");
     int s0 = rpcCall((char*)"f0", argTypes0, args0);
-    printf("return from call\n");
+		for (int i=0; i < 10000; i++) 
+				printf("return from call\nvalue: %d\n", return0);
     return 0;
 
 }

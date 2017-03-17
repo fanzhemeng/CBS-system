@@ -70,7 +70,7 @@ int decode_int(std::string str) {
 size_t length_of_argtypes(int* argtypes) {
     size_t i;
     for (i = 0; argtypes[i] != 0; i ++);
-    return i;
+    return i+1;
 }
 
 std::string encode_argtypes(int* argtypes) {
@@ -111,7 +111,7 @@ std::pair <size_t, std::string> decode_socket(std::string str) {
 }
 
 std::string encode_args(int* argtypes, void** args) {
-    size_t len = length_of_argtypes(argtypes);
+    size_t len = length_of_argtypes(argtypes) -1;
 
     std::string str;
     for (int i = 0; i < len; i ++) {

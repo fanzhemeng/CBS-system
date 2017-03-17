@@ -19,6 +19,7 @@ int server_port;
 
 
 void* handle2(void* data) {
+    std::cout << "server addr is : " << server_addr << std::endl;
     while(active2) {
         pthread_mutex_lock(&lock2);
         selection(-1);
@@ -98,6 +99,9 @@ int rpcCall(char *name, int *argTypes, void** args) {
     std::string fname = encode_fname(name);
     std::string argtyps = encode_argtypes(argTypes);
     std::string ars = encode_args(argTypes, args);
+		for (int i=0; argTypes[i]!=0; i++)
+				std::cout << argTypes[i] << "  ";
+		std::cout << std::endl;
     std::string message = type + fname + argtyps + ars;
 
     pthread_create(&response_thread2, NULL, &handle2, NULL);

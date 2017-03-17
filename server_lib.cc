@@ -1,5 +1,6 @@
 #include <string>
 #include <map>
+#include <vector>
 #include <utility>
 #include <iostream>
 #include <sstream>
@@ -15,7 +16,24 @@ volatile int client_sockfd;
 pthread_mutex_t lock;
 pthread_t response_thread;
 bool active;
-std::map< std::pair< std::string, int*>, skeleton> ftable;
+typedef std::map< std::pair< std::string, std::vector<int> >, skeleton> tab;
+tab ftable;
+
+typedef std::vector <int> argtypes;
+bool operator < (const argtypes &argTypes1, const argtypes &argTypes2) {
+    int l1 = argTypes1.size();
+    int l2 = argTypes2.size();
+    if (l1 < l2) return true;
+    else if (l1 > l2) return false;
+    else {
+        for(int i = 0; i < l1; i++) {
+            if (argTypes1[i] < argTypes2[i]) return true;
+            else if (argTypes1[i] > argTypes2[i]) return false;
+        }
+        return false;
+    }
+}
+
 
 void* handle(void* data) {
     while(active) {
@@ -63,7 +81,11 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     std::string enc = type + id + encoded_port + fname + argt;
 
 	// save skeleton f in local table
-	ftable[std::make_pair(name, argTypes)] = f;
+	std::vector<int> argt_v;
+	for (int i=0; argTypes[i]!=0; i++)
+			argt_v.push_back(argTypes[i]);
+	argt_v.push_back(0);
+	ftable[std::make_pair(name, argt_v)] = f;
     active = true;
     pthread_create(&response_thread, NULL, &handle, NULL);
     pthread_mutex_init(&lock, NULL);
@@ -79,6 +101,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute(void) {
+		std::cout << "hello out while" << std::endl;
 	while (1) {
 		// update buffers to receive messages
 		selection(client_sockfd);
@@ -86,6 +109,7 @@ int rpcExecute(void) {
 		std::pair <int, std::string> request = respond();
 		if (request.first == -1) { continue; }
 
+		std::cout << "hello" << std::endl;
 		// get the actual message and its type
 		std::string msg = request.second;
         std::cout << "mes: " << msg << std::endl;
@@ -95,14 +119,33 @@ int rpcExecute(void) {
             std::cout << "receiving an execute request" << std::endl;
 			// decode fname, argtypes, and args
 			std::string fname = decode_fname(msg);
-			msg = msg.substr(sizeof(size_t) + fname.length());
+			msg.erase(0, sizeof(size_t) + fname.length());
 			std::pair<size_t, int*> a = decode_argtypes(msg);
+			std::cout << "sizeof argTypes: " << a.first << std::endl;
 			int *argt = a.second;
 			msg = msg.substr(sizeof(size_t) + a.first * sizeof(int));
 			void **args = decode_args(argt, msg);
             std::cout << "decoding done" << std::endl;
+	std::vector<int> argt_v2;
+	for (int i=0; argt[i]!=0; i++) {
+			argt_v2.push_back(argt[i]);
+			std::cout << argt[i+1] << "  ";
+	}
+	argt_v2.push_back(0);
+	//std::cout << "0" << std::endl;
+
+	std::cout << "hello ftable " << std::endl;
+	tab::iterator tit;
+	for (tit=ftable.begin(); tit!=ftable.end(); tit++) {
+			std::cout << tit->first.first << "  ";
+			std::vector<int> a = tit->first.second;
+			for (std::vector<int>::iterator iit=a.begin(); iit!=a.end(); iit++)
+					std::cout << *iit << " ";
+			std::cout << std::endl;
+	}
 			// find and call skeleton function
-			skeleton f = ftable.at(std::make_pair(fname, argt));
+			skeleton f = ftable.at(std::make_pair(fname, argt_v2));
+	std::cout << "done ftable " << std::endl;
 			int result = f(argt, args);
 
 			// now send result back to client
