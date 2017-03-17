@@ -123,16 +123,19 @@ int rpcExecute(void) {
 			std::pair<size_t, int*> a = decode_argtypes(msg);
 			std::cout << "sizeof argTypes: " << a.first << std::endl;
 			int *argt = a.second;
-			msg = msg.substr(sizeof(size_t) + a.first * sizeof(int));
+			msg.erase(0, sizeof(size_t) + a.first * sizeof(int));
 			void **args = decode_args(argt, msg);
             std::cout << "decoding done" << std::endl;
 	std::vector<int> argt_v2;
+	std::cout << "argTypes array is ";
 	for (int i=0; argt[i]!=0; i++) {
 			argt_v2.push_back(argt[i]);
-			std::cout << argt[i+1] << "  ";
+			std::cout << argt[i] << "  ";
 	}
 	argt_v2.push_back(0);
-	//std::cout << "0" << std::endl;
+	std::cout << "0" << std::endl;
+						for (int i=0; i<a.first-1; i++)
+								std::cout << "args[" << i << "]: " << *(((int**)args)[i]) << std::endl;
 
 	std::cout << "hello ftable " << std::endl;
 	tab::iterator tit;
@@ -147,19 +150,23 @@ int rpcExecute(void) {
 			skeleton f = ftable.at(std::make_pair(fname, argt_v2));
 	std::cout << "done ftable " << std::endl;
 			int result = f(argt, args);
+			std::cout << "execution result: " << result << std::endl;
+			std::cout << "value: " << *(int*)args[0] << std::endl;
 
 			// now send result back to client
 			std::string enc_type, ret_msg;
 			if (result == 0) {
-				enc_type = std::string("") + (char)EXECUTE_SUCC;
+				enc_type = encode_int(EXECUTE_SUCC);
 				std::string enc_fname = encode_fname(fname);
 				std::string enc_argt = encode_argtypes(argt);
 				std::string enc_args = encode_args(argt, args);
 				ret_msg = enc_type + enc_fname + enc_argt + enc_args;
-				send_result(std::make_pair(client_sockfd, ret_msg));
+				send_result(std::make_pair(request.first, ret_msg));
+        std::cout << "reponse sent" << std::endl;
+
 			}
 			else {
-				enc_type = std::string("") + (char)EXECUTE_FAIL;
+				enc_type = encode_int(EXECUTE_FAIL);
 				std::string enc_reasonCode = encode_int(result);
 				ret_msg = enc_type + enc_reasonCode;
 				send_result(std::make_pair(client_sockfd, ret_msg));

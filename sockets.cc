@@ -126,7 +126,7 @@ std::string encode_args(int* argtypes, void** args) {
 }
 
 void ** decode_args(int* argtypes, std::string str) {
-    size_t len = length_of_argtypes(argtypes);
+    size_t len = length_of_argtypes(argtypes)-1;
     void **args = new void*[len];
     for (int i = 0; i < len; i ++) {
         unsigned int array_len = std::max((argtypes[i] & 0xffff), 1);
